@@ -1,15 +1,15 @@
-import 'package:analyzer/dart/element/type.dart' hide FunctionType;
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart' hide FunctionType;
 import 'package:code_builder/code_builder.dart';
 import 'package:firestore_odm_builder/src/utils/reference_utils.dart';
 import 'package:firestore_odm_builder/src/utils/string_utils.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:source_gen/source_gen.dart';
+
 import '../utils/model_analyzer.dart';
 
 /// Generator for update builders and related classes using code_builder
 class ConverterGenerator {
-
   static bool _isEnumType(DartType type) {
     // Old analyzer API provides EnumElement
     final el = (type is InterfaceType) ? type.element : null;
@@ -17,14 +17,14 @@ class ConverterGenerator {
   }
 
   static ({Expression toMap, Expression fromMap, TypeReference jsonType})
-      _buildEnumMaps(InterfaceType type) {
+  _buildEnumMaps(InterfaceType type) {
     final el = type.element;
     if (el is! EnumElement) {
       // Fallback if not enum
       return (
         toMap: literalMap(const {}),
         fromMap: literalMap(const {}),
-        jsonType: TypeReferences.string
+        jsonType: TypeReferences.string,
       );
     }
 
@@ -36,8 +36,9 @@ class ConverterGenerator {
     var allInt = true;
 
     for (final c in constants) {
-      final ann =
-          TypeChecker.fromRuntime(JsonValue).firstAnnotationOfExact(c);
+      final ann = TypeChecker.fromRuntime(
+        JsonValue,
+      ).annotationsOf(c).firstOrNull;
       dynamic raw;
       if (ann != null) {
         final reader = ConstantReader(ann);
@@ -75,13 +76,13 @@ class ConverterGenerator {
     final jsonType = allString
         ? TypeReferences.string
         : allInt
-            ? TypeReferences.int
-            : TypeReferences.dynamic;
+        ? TypeReferences.int
+        : TypeReferences.dynamic;
 
     return (
       toMap: literalMap({for (final e in entriesTo) e.key: e.value}),
       fromMap: literalMap({for (final e in entriesFrom) e.key: e.value}),
-      jsonType: jsonType
+      jsonType: jsonType,
     );
   }
 
@@ -217,7 +218,6 @@ class ConverterGenerator {
     return value; // refer('(value) => value');
   }
 
-
   static Expression callFromJson({
     required DartType type,
     required Expression value,
@@ -230,7 +230,7 @@ class ConverterGenerator {
         value.asA(customConverter.jsonType.reference),
       ]);
     }
-    
+
     if (typeConverters.containsKey(type)) {
       // If a type converter is provided, use it directly
       return typeConverters[type]!.call([value]);
@@ -238,11 +238,7 @@ class ConverterGenerator {
 
     if (type is InterfaceType && _isEnumType(type)) {
       final maps = _buildEnumMaps(type);
-      return _handleNullalbe(
-        type,
-        value,
-        (v) => maps.fromMap.index(v),
-      );
+      return _handleNullalbe(type, value, (v) => maps.fromMap.index(v));
     }
 
     if (isPrimitive(type)) {
@@ -383,8 +379,6 @@ class ConverterGenerator {
         ).code,
     ).closure;
   }
-
-
 
   static Method generateToJsonMethod({required InterfaceType type}) {
     final fields = getFields(type);

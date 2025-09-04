@@ -5,8 +5,8 @@ import 'package:code_builder/code_builder.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:firestore_odm_annotation/firestore_odm_annotation.dart';
 import 'package:firestore_odm_builder/src/utils/reference_utils.dart';
-import 'package:source_gen/source_gen.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:source_gen/source_gen.dart';
 
 class CustomConverter {
   final InterfaceType type;
@@ -87,7 +87,7 @@ Map<String, FieldInfo> getFields(InterfaceType type) {
     if (parameter.metadata.isNotEmpty) {
       final jsonKey = TypeChecker.fromRuntime(
         JsonKey,
-      ).firstAnnotationOfExact(parameter);
+      ).annotationsOf(parameter).firstOrNull;
       if (jsonKey != null) {
         final reader = ConstantReader(jsonKey);
 
@@ -148,9 +148,9 @@ String getDocumentIdFieldName(InterfaceType type) {
     );
   }
 
-  final params = constructor.parameters.where(
-    (p) => TypeChecker.fromRuntime(DocumentIdField).hasAnnotationOf(p),
-  );
+  final params = constructor.parameters.where((p) {
+    return TypeChecker.fromRuntime(DocumentIdField).annotationsOf(p).isNotEmpty;
+  });
 
   if (params.length > 1) {
     throw ArgumentError(
@@ -186,7 +186,9 @@ TypeReference getJsonType({required DartType type}) {
     var allInt = true;
 
     for (final c in constants) {
-      final ann = TypeChecker.fromRuntime(JsonValue).firstAnnotationOfExact(c);
+      final ann = TypeChecker.fromRuntime(
+        JsonValue,
+      ).annotationsOf(c).firstOrNull;
       if (ann == null) {
         // default = name -> String
         continue;
@@ -209,8 +211,8 @@ TypeReference getJsonType({required DartType type}) {
     final base = allString
         ? TypeReferences.string
         : allInt
-            ? TypeReferences.int
-            : TypeReferences.dynamic;
+        ? TypeReferences.int
+        : TypeReferences.dynamic;
     return base.withNullability(type.isNullable);
   }
 

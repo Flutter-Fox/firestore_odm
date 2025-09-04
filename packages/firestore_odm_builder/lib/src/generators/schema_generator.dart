@@ -210,7 +210,7 @@ class SchemaGenerator {
         .where(isUserType)
         .whereType<InterfaceType>()
         .map((t) => t.element.thisType)
-        .where((t) => !odmTypeChecker.hasAnnotationOf(t.element));
+        .where((t) => !odmTypeChecker.hasAnnotationOf(t.element3));
     if (missingAnnotations.isNotEmpty) {
       throw ArgumentError(
         'The following model types are missing @FirestoreOdm annotation: '
@@ -336,13 +336,11 @@ class SchemaGenerator {
             UpdateGenerator.getBuilderType(type: collection.modelType),
             FilterGenerator.getBuilderType(
               type: collection.modelType,
-
               isRoot: true,
             ),
             OrderByGenerator.getOrderByBuilderType(type: collection.modelType),
             AggregateGenerator.getBuilderType(
               type: collection.modelType,
-
               isRoot: true,
             ),
           ]),
@@ -376,7 +374,6 @@ class SchemaGenerator {
                   ),
                   'filterBuilder': FilterGenerator.getBuilderInstanceExpression(
                     type: collection.modelType,
-
                     isRoot: true,
                   ),
                   'orderByBuilderFunc': Method(
@@ -454,7 +451,6 @@ class SchemaGenerator {
             OrderByGenerator.getOrderByBuilderType(type: collection.modelType),
             AggregateGenerator.getBuilderType(
               type: collection.modelType,
-
               isRoot: true,
             ),
           ]),
@@ -488,7 +484,6 @@ class SchemaGenerator {
                   ),
                   'filterBuilder': FilterGenerator.getBuilderInstanceExpression(
                     type: collection.modelType,
-
                     isRoot: true,
                   ),
                   'orderByBuilderFunc': Method(
@@ -807,7 +802,6 @@ class SchemaGenerator {
               OrderByGenerator.getOrderByBuilderType(type: subcol.modelType),
               AggregateGenerator.getBuilderType(
                 type: subcol.modelType,
-
                 isRoot: true,
               ),
             ]),
@@ -841,7 +835,6 @@ class SchemaGenerator {
                     'filterBuilder':
                         FilterGenerator.getBuilderInstanceExpression(
                           type: subcol.modelType,
-
                           isRoot: true,
                         ),
                     'orderByBuilderFunc': Method(
@@ -1016,7 +1009,7 @@ class SchemaGenerator {
     }
     return specs;
   }
-   
+
   static Iterable<DartType> scan(
     DartType type, [
     Element? annotatedElement,

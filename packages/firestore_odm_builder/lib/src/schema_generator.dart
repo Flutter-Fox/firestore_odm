@@ -1,10 +1,11 @@
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:firestore_odm_annotation/firestore_odm_annotation.dart';
+import 'package:firestore_odm_builder/src/generators/schema_generator.dart';
 import 'package:firestore_odm_builder/src/utils/string_utils.dart';
 import 'package:source_gen/source_gen.dart';
-import 'package:firestore_odm_builder/src/generators/schema_generator.dart';
 
 /// Generator for Firestore ODM using source_gen
 class SchemaGenerator2 extends GeneratorForAnnotation<Schema> {
@@ -12,7 +13,7 @@ class SchemaGenerator2 extends GeneratorForAnnotation<Schema> {
 
   @override
   String generateForAnnotatedElement(
-    Element element,
+    Element2 element,
     ConstantReader annotation,
     BuildStep buildStep,
   ) {
@@ -22,16 +23,22 @@ class SchemaGenerator2 extends GeneratorForAnnotation<Schema> {
         element: element,
       );
     }
+    final topLevelVariableElement = element as TopLevelVariableElement;
 
-    return _generateForSchema(element, buildStep.resolver);
+    return _generateForSchema(
+      topLevelVariableElement,
+      buildStep.resolver,
+      element,
+    );
   }
 
   String _generateForSchema(
     TopLevelVariableElement element,
     Resolver resolver,
+    Element2 sourceElement,
   ) {
     // 1. Extract all @Collection annotations from this schema variable
-    final collections = _extractCollectionAnnotations(element);
+    final collections = _extractCollectionAnnotations(element, sourceElement);
 
     print('Found ${collections.length} collections in schema');
 
@@ -42,6 +49,7 @@ class SchemaGenerator2 extends GeneratorForAnnotation<Schema> {
   /// Extract @Collection annotations from a schema variable
   List<SchemaCollectionInfo> _extractCollectionAnnotations(
     TopLevelVariableElement element,
+    Element2 sourceElement,
   ) {
     final collections = <SchemaCollectionInfo>[];
 
@@ -62,7 +70,7 @@ class SchemaGenerator2 extends GeneratorForAnnotation<Schema> {
           if (modelType is! InterfaceType) {
             throw InvalidGenerationSourceError(
               'Model type must be an InterfaceType for @Collection annotation.',
-              element: element,
+              element: sourceElement,
             );
           }
 
