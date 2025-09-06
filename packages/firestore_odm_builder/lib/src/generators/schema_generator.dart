@@ -73,17 +73,18 @@ class SchemaGenerator {
     TopLevelVariableElement2 variableElement,
   ) {
     try {
-      final initializer = variableElement.constantInitializer;
-      if (initializer != null) {
-        final assignedValue = initializer.toSource();
+      final ci = variableElement.constantInitializer2;
+      if (ci != null) {
+        // Get the source of the initializer expression (e.g. '_$FirestoreDatabase')
+        final assignedValue = ci.expression.toSource();
 
-        // Validate that it looks like a proper assigned value
+        // Validate and return if this matches the generator pattern
         if (assignedValue.isNotEmpty && assignedValue.startsWith('_\$')) {
           return assignedValue;
         }
       }
     } catch (e) {
-      // Ignore parsing errors and fall back to convention
+      // Ignore errors and fall back
     }
 
     // Fallback: generate from variable name following the convention
