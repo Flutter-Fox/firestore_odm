@@ -1,4 +1,3 @@
-import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart' hide FunctionType, RecordType;
 import 'package:code_builder/code_builder.dart';
@@ -988,24 +987,29 @@ class SchemaGenerator {
     return specs;
   }
 
+  /// Traverse nested types with cycle detection to avoid infinite recursion
   static Iterable<DartType> run(
     DartType type,
-    ModelAnalyzer modelAnalyzer, [
-    Element? annotatedElement,
-  ]) sync* {
+    ModelAnalyzer modelAnalyzer,
+  ) sync* {
+    final visited = <DartType>{};
+    yield* _runInner(type, modelAnalyzer, visited);
+  }
+
+  static Iterable<DartType> _runInner(
+    DartType type,
+    ModelAnalyzer modelAnalyzer,
+    Set<DartType> visited,
+  ) sync* {
+    if (!visited.add(type)) return;
     yield type;
-
     if (type is! InterfaceType) return;
-
     final fields = modelAnalyzer.getFields(type);
-    // Recursively find all nested InterfaceTypes in the fields of this type
     for (final field in fields.values) {
-      yield* run(field.type, modelAnalyzer, field.element);
+      yield* _runInner(field.type, modelAnalyzer, visited);
     }
-
-    // If this is a ParameterizedType, analyze its type arguments as well
     for (final arg in type.typeArguments) {
-      yield* run(arg, modelAnalyzer);
+      yield* _runInner(arg, modelAnalyzer, visited);
     }
   }
 }
