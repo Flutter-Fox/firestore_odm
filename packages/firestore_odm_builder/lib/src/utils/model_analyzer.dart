@@ -27,7 +27,6 @@ class FieldInfo {
 
 /// Analyzer for complete model structure including JSON field mapping
 class ModelAnalyzer {
-  
   // Add public constructor for creating fresh instances
   ModelAnalyzer();
 
@@ -51,7 +50,8 @@ class ModelAnalyzer {
     }
 
     final params = constructor.parameters.where(
-      (p) => TypeChecker.fromRuntime(DocumentIdField).hasAnnotationOf(p),
+      (p) =>
+          TypeChecker.fromRuntime(DocumentIdField).annotationsOf(p).isNotEmpty,
     );
 
     if (params.length > 1) {
@@ -99,7 +99,7 @@ class ModelAnalyzer {
       if (parameter.metadata.isNotEmpty) {
         final jsonKey = TypeChecker.fromRuntime(
           JsonKey,
-        ).firstAnnotationOfExact(parameter);
+        ).annotationsOf(parameter).firstOrNull;
         if (jsonKey != null) {
           final reader = ConstantReader(jsonKey);
 

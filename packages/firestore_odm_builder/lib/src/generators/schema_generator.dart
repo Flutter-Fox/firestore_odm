@@ -1,4 +1,5 @@
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart' hide FunctionType, RecordType;
 import 'package:code_builder/code_builder.dart';
 import 'package:collection/collection.dart';
@@ -8,10 +9,10 @@ import 'package:firestore_odm_builder/src/utils/reference_utils.dart';
 import 'package:firestore_odm_builder/src/utils/string_utils.dart';
 
 import '../utils/model_analyzer.dart';
+import 'aggregate_generator.dart';
 import 'filter_generator.dart';
 import 'order_by_generator.dart';
 import 'update_generator.dart';
-import 'aggregate_generator.dart';
 
 /// Information about a collection annotation extracted from a schema variable
 class SchemaCollectionInfo {
@@ -54,7 +55,7 @@ enum ClassType {
 class SchemaGenerator {
   /// Generate schema class and extensions from annotated variable (with converters)
   static String generateSchemaCode(
-    TopLevelVariableElement variableElement,
+    TopLevelVariableElement2 variableElement,
     List<SchemaCollectionInfo> collections,
   ) {
     final library = Library(
@@ -68,42 +69,24 @@ class SchemaGenerator {
   }
 
   /// Extract the assigned value from a variable element (e.g., "_$TestSchema" from "final testSchema = _$TestSchema;")
-  static String _extractAssignedValue(TopLevelVariableElement variableElement) {
+  static String _extractAssignedValue(
+    TopLevelVariableElement2 variableElement,
+  ) {
     try {
-      // Try to get the source location and extract the assigned value
-      final source = variableElement.source;
-      if (source != null) {
-        final contents = source.contents.data;
-        final name = variableElement.name;
+      final assignedValue = variableElement.type.getDisplayString(
+        withNullability: false,
+      );
 
-        // Find the variable declaration line
-        final lines = contents.split('\n');
-        for (final line in lines) {
-          if (line.contains('$name =') && line.contains('_\$')) {
-            // Extract the assigned value (everything after '=' and before ';')
-            final equalIndex = line.indexOf('$name =');
-            if (equalIndex != -1) {
-              final afterEqual = line
-                  .substring(equalIndex + '$name ='.length)
-                  .trim();
-              final assignedValue = afterEqual
-                  .replaceAll(RegExp(r';.*$'), '')
-                  .trim();
-
-              // Validate that it looks like a proper assigned value
-              if (assignedValue.isNotEmpty && assignedValue.startsWith('_\$')) {
-                return assignedValue;
-              }
-            }
-          }
-        }
+      // Validate that it looks like a proper assigned value
+      if (assignedValue.isNotEmpty && assignedValue.startsWith('_\$')) {
+        return assignedValue;
       }
     } catch (e) {
       // Ignore parsing errors and fall back to convention
     }
 
     // Fallback: generate from variable name following the convention
-    return '_\$${variableElement.name.upperFirst()}';
+    return '_\$${variableElement.name3?.upperFirst()}';
   }
 
   /// Generate document class name from collection path
@@ -219,11 +202,11 @@ class SchemaGenerator {
 
   /// Generate all library members
   static List<Spec> _generateAllLibraryMembers(
-    TopLevelVariableElement variableElement,
+    TopLevelVariableElement2 variableElement,
     List<SchemaCollectionInfo> collections,
   ) {
     final specs = <Spec>[];
-    
+
     // Create fresh instances for this schema to avoid cache pollution
     final modelAnalyzer = ModelAnalyzer();
     final converterFactory = ConverterFactory(modelAnalyzer);
@@ -231,36 +214,81 @@ class SchemaGenerator {
     specs.addAll(_generateCollectionIdentifiers(collections));
 
     // Use variable name for clean class name (e.g., "schema" -> "Schema", "helloSchema" -> "HelloSchema")
-    final variableName = variableElement.name;
-    final schemaClassName = variableName.upperFirst();
+    final variableName = variableElement.name3;
+    final schemaClassName = variableName?.upperFirst();
 
     // Extract the assigned value (e.g., "_$TestSchema") for the const name
     final assignedValue = _extractAssignedValue(variableElement);
     final schemaConstName = assignedValue;
+
+    if (schemaClassName == null) {
+      throw Exception('Schema class name is null');
+    }
 
     // Generate the schema class and constant
     specs.addAll(
       _generateSchemaClassAndConstant(schemaClassName, schemaConstName),
     );
 
-    specs.addAll(_generateFilterAndOrderBySelectors(collections, schemaClassName, 
-        converterFactory: converterFactory, modelAnalyzer: modelAnalyzer));
+    specs.addAll(
+      _generateFilterAndOrderBySelectors(
+        collections,
+        schemaClassName,
+        converterFactory: converterFactory,
+        modelAnalyzer: modelAnalyzer,
+      ),
+    );
     // Generate filter and order by builders for each model type
 
     // Generate ODM extensions
-    specs.add(_generateODMExtensions(schemaClassName, collections, converterFactory, modelAnalyzer));
+    specs.add(
+      _generateODMExtensions(
+        schemaClassName,
+        collections,
+        converterFactory,
+        modelAnalyzer,
+      ),
+    );
 
     // Generate transaction context extensions
-    specs.add(_generateTransactionContext(schemaClassName, collections, converterFactory, modelAnalyzer));
-    specs.addAll(_generateTransactionDocuments(schemaClassName, collections, converterFactory, modelAnalyzer));
+    specs.add(
+      _generateTransactionContext(
+        schemaClassName,
+        collections,
+        converterFactory,
+        modelAnalyzer,
+      ),
+    );
+    specs.addAll(
+      _generateTransactionDocuments(
+        schemaClassName,
+        collections,
+        converterFactory,
+        modelAnalyzer,
+      ),
+    );
 
     // Generate batch context extensions
 
     // Generate unique document classes for each collection path
-    specs.addAll(_generateUniqueDocumentClasses(schemaClassName, collections, converterFactory, modelAnalyzer));
+    specs.addAll(
+      _generateUniqueDocumentClasses(
+        schemaClassName,
+        collections,
+        converterFactory,
+        modelAnalyzer,
+      ),
+    );
 
     // Generate document extensions for subcollections (path-specific)
-    // specs.addAll(_generateDocumentExtensions(schemaClassName, collections));
+    // specs.addAll(
+    //   _generateDocumentExtensions(
+    //     schemaClassName,
+    //     collections,
+    //     converterFactory,
+    //     modelAnalyzer,
+    //   ),
+    // );
 
     // Generate batch document extensions for subcollections
     final batchExtension = _generateBatchContextExtensions(
@@ -271,7 +299,12 @@ class SchemaGenerator {
     );
     if (batchExtension != null) specs.add(batchExtension);
     specs.addAll(
-      _generateBatchDocumentExtensions(schemaClassName, collections, converterFactory, modelAnalyzer),
+      _generateBatchDocumentExtensions(
+        schemaClassName,
+        collections,
+        converterFactory,
+        modelAnalyzer,
+      ),
     );
 
     specs.addAll(converterFactory.specs);
@@ -314,13 +347,11 @@ class SchemaGenerator {
 
   /// Generate filter and order by builders for all model types
   static List<Spec> _generateFilterAndOrderBySelectors(
-      List<SchemaCollectionInfo> collections,
+    List<SchemaCollectionInfo> collections,
     String schemaClassName, {
     required ConverterFactory converterFactory,
     required ModelAnalyzer modelAnalyzer,
-
-    }
-  ) {
+  }) {
     final specs = <Spec>[];
 
     for (final entry
@@ -334,12 +365,20 @@ class SchemaGenerator {
 
       // Generate FilterSelector class using ModelAnalysis
       final filterClass =
-          FilterGenerator.generateFilterSelectorClassFromAnalysis(schemaClassName, baseType, modelAnalyzer: modelAnalyzer);
+          FilterGenerator.generateFilterSelectorClassFromAnalysis(
+            schemaClassName,
+            baseType,
+            modelAnalyzer: modelAnalyzer,
+          );
       specs.add(filterClass);
 
       // Generate OrderBySelector class using ModelAnalysis
       final orderByExtension =
-          OrderByGenerator.generateOrderBySelectorClassFromAnalysis(schemaClassName, baseType, modelAnalyzer: modelAnalyzer);
+          OrderByGenerator.generateOrderBySelectorClassFromAnalysis(
+            schemaClassName,
+            baseType,
+            modelAnalyzer: modelAnalyzer,
+          );
       specs.add(orderByExtension);
 
       // Generate AggregateFieldSelector extension using ModelAnalysis
@@ -425,9 +464,7 @@ class SchemaGenerator {
                   .getConverter(collection.modelType)
                   .toConverterExpr(),
               'documentIdField': literalString(
-                modelAnalyzer.getDocumentIdFieldName(
-                  collection.modelType,
-                ),
+                modelAnalyzer.getDocumentIdFieldName(collection.modelType),
               ),
             }).code,
         ),
@@ -494,9 +531,7 @@ class SchemaGenerator {
                   .getConverter(collection.modelType)
                   .toConverterExpr(),
               'documentIdField': literalString(
-                modelAnalyzer.getDocumentIdFieldName(
-                  collection.modelType,
-                ),
+                modelAnalyzer.getDocumentIdFieldName(collection.modelType),
               ),
             }).code,
         ),
@@ -569,9 +604,7 @@ class SchemaGenerator {
                     .getConverter(subcol.modelType)
                     .toConverterExpr(),
                 'documentIdField': literalString(
-                  modelAnalyzer.getDocumentIdFieldName(
-                    subcol.modelType,
-                  ),
+                  modelAnalyzer.getDocumentIdFieldName(subcol.modelType),
                 ),
               }).code,
           ),
@@ -695,8 +728,9 @@ class SchemaGenerator {
       for (final subcol in getSubcollections(collections, collection)) {
         final subcollectionName = _getCollectionName(subcol.path);
         final getterName = subcollectionName.camelCase().lowerFirst();
-        final documentIdFieldName = modelAnalyzer
-            .getDocumentIdFieldName(subcol.modelType);
+        final documentIdFieldName = modelAnalyzer.getDocumentIdFieldName(
+          subcol.modelType,
+        );
 
         // Generate unique collection class name for this subcollection path
         final collectionClassName = _generateClassName(
@@ -824,8 +858,9 @@ class SchemaGenerator {
       for (final subcol in subcolsForParent) {
         final subcollectionName = _getCollectionName(subcol.path);
         final getterName = subcollectionName.camelCase().lowerFirst();
-        final documentIdFieldName = modelAnalyzer
-            .getDocumentIdFieldName(subcol.modelType);
+        final documentIdFieldName = modelAnalyzer.getDocumentIdFieldName(
+          subcol.modelType,
+        );
 
         // Generate unique collection class name for this subcollection path
         final collectionClassName = _generateClassName(
@@ -919,9 +954,7 @@ class SchemaGenerator {
                     .getConverter(subcol.modelType)
                     .toConverterExpr(),
                 'documentIdField': literalString(
-                  modelAnalyzer.getDocumentIdFieldName(
-                    subcol.modelType,
-                  ),
+                  modelAnalyzer.getDocumentIdFieldName(subcol.modelType),
                 ),
               }).code,
           ),

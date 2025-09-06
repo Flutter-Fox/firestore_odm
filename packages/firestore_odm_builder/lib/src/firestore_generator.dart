@@ -1,9 +1,9 @@
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:firestore_odm_annotation/firestore_odm_annotation.dart';
-import 'package:source_gen/source_gen.dart';
 import 'package:firestore_odm_builder/src/generators/schema_generator.dart';
+import 'package:source_gen/source_gen.dart';
 
 /// Generator for Firestore ODM using source_gen
 class FirestoreGenerator extends GeneratorForAnnotation<Schema> {
@@ -11,11 +11,11 @@ class FirestoreGenerator extends GeneratorForAnnotation<Schema> {
 
   @override
   String generateForAnnotatedElement(
-    Element element,
+    Element2 element,
     ConstantReader annotation,
     BuildStep buildStep,
   ) {
-    if (element is! TopLevelVariableElement) {
+    if (element is! TopLevelVariableElement2) {
       throw InvalidGenerationSourceError(
         'Schema annotation can only be applied to top-level variables.',
         element: element,
@@ -26,7 +26,7 @@ class FirestoreGenerator extends GeneratorForAnnotation<Schema> {
   }
 
   String _generateForSchema(
-    TopLevelVariableElement element,
+    TopLevelVariableElement2 element,
     Resolver resolver,
   ) {
     // 1. Extract all @Collection annotations from this schema variable
@@ -35,21 +35,18 @@ class FirestoreGenerator extends GeneratorForAnnotation<Schema> {
     print('Found ${collections.length} collections in schema');
 
     // 3. Generate schema code with all types
-    return SchemaGenerator.generateSchemaCode(
-      element,
-      collections
-    );
+    return SchemaGenerator.generateSchemaCode(element, collections);
   }
 
   /// Extract @Collection annotations from a schema variable
   List<SchemaCollectionInfo> _extractCollectionAnnotations(
-    TopLevelVariableElement element,
+    TopLevelVariableElement2 element,
   ) {
     final collections = <SchemaCollectionInfo>[];
 
-    for (final annotation in element.metadata) {
+    for (final annotation in element.metadata2.annotations) {
       final annotationValue = annotation.computeConstantValue();
-      if (annotationValue?.type?.element?.name == 'Collection') {
+      if (annotationValue?.type?.element3?.name3 == 'Collection') {
         // Extract path from @Collection("path")
         final path = annotationValue!.getField('path')!.toStringValue()!;
 
