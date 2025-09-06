@@ -71,16 +71,17 @@ class IterableConverter<T>
   }
 }
 
-class ListConverter<T>
-    implements FirestoreConverter<List<T>, List<dynamic>> {
+class ListConverter<T> implements FirestoreConverter<List<T>, List<dynamic>> {
   final FirestoreConverter<T, dynamic> elementConverter;
   const ListConverter(this.elementConverter);
 
   @override
-  List<T> fromJson(List<dynamic> data) => data.map((item) => elementConverter.fromJson(item)).toList();
+  List<T> fromJson(List<dynamic> data) =>
+      data.map((item) => elementConverter.fromJson(item)).toList();
 
   @override
-  List<dynamic> toJson(Iterable<T> data) => data.map((item) => elementConverter.toJson(item)).toList();
+  List<dynamic> toJson(Iterable<T> data) =>
+      data.map((item) => elementConverter.toJson(item)).toList();
 }
 
 class SetConverter<T> extends IterableConverter<T> {
@@ -136,7 +137,7 @@ class DurationConverter implements FirestoreConverter<Duration, int> {
 }
 
 class NullableConverter<T, F> implements FirestoreConverter<T?, F?> {
-  final FirestoreConverter<T, F> innerConverter;
+  final FirestoreConverter<T?, F?> innerConverter;
 
   const NullableConverter(this.innerConverter);
 
