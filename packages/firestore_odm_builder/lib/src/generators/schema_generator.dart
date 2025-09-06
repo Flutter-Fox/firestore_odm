@@ -73,13 +73,14 @@ class SchemaGenerator {
     TopLevelVariableElement2 variableElement,
   ) {
     try {
-      final assignedValue = variableElement.type.getDisplayString(
-        withNullability: false,
-      );
+      final initializer = variableElement.constantInitializer;
+      if (initializer != null) {
+        final assignedValue = initializer.toSource();
 
-      // Validate that it looks like a proper assigned value
-      if (assignedValue.isNotEmpty && assignedValue.startsWith('_\$')) {
-        return assignedValue;
+        // Validate that it looks like a proper assigned value
+        if (assignedValue.isNotEmpty && assignedValue.startsWith('_\$')) {
+          return assignedValue;
+        }
       }
     } catch (e) {
       // Ignore parsing errors and fall back to convention
